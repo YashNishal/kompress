@@ -4,7 +4,7 @@ import { Activity, ChevronDown, FolderOpen, Keyboard, Moon, Sun } from "lucide-r
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +17,14 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { canSaveToFolder, downloadAsZip, downloadOne, exportEntries, saveToFolder } from "@/engine/export/export";
+import {
+  canSaveToFolder,
+  downloadAsZip,
+  downloadOne,
+  exportEntries,
+  saveToFolder,
+  type ExportProgress,
+} from "@/engine/export/export";
 import { filesFromInput } from "@/lib/files";
 import { formatBytes } from "@/lib/format";
 import { MODES } from "@/lib/theme";
@@ -40,17 +47,54 @@ export function TopBar() {
   const compareId = selected[0] ?? order[0];
   const onCompare = pathname.startsWith("/app/compare");
 
+  // Fraction written while an export runs, null when idle. Exports are local, so the browser's
+  // downloads tab has nothing to show until they finish; this is the only progress the user sees.
+  const [exporting, setExporting] = useState<number | null>(null);
+  const busy = useRef(false);
+
   const exportAll = async (mode: "zip" | "folder") => {
+    if (busy.current) return;
     const entries = exportEntries(done.map((id) => items[id]));
     if (!entries.length) return;
+    if (mode === "zip" && entries.length === 1) {
+      downloadOne(entries[0]);
+      toast.success(`Downloaded ${entries[0].name.split("/").pop()}`, { description: formatBytes(entries[0].blob.size) });
+      return;
+    }
+
+    const label = mode === "folder" ? `Saving ${entries.length} files` : `Zipping ${entries.length} files`;
+    const id = toast.loading(label, { duration: Infinity });
+    let last = 0;
+    const onProgress: ExportProgress = (written, total) => {
+      const now = performance.now();
+      if (now - last < 100 && written < total) return;
+      last = now;
+      const f = total ? Math.min(written / total, 1) : 0;
+      setExporting(f);
+      toast.loading(label, {
+        id,
+        duration: Infinity,
+        description: <ExportMeter fraction={f} written={written} total={total} />,
+      });
+    };
+
+    busy.current = true;
+    setExporting(0);
     try {
       if (mode === "folder") {
-        const n = await saveToFolder(entries);
-        if (n) toast.success(`Saved ${n} file${n === 1 ? "" : "s"}`);
-      } else if (entries.length === 1) downloadOne(entries[0]);
-      else await downloadAsZip(entries);
+        const n = await saveToFolder(entries, onProgress);
+        if (n) toast.success(`Saved ${n} file${n === 1 ? "" : "s"}`, { id, duration: 4000, description: undefined });
+        else toast.dismiss(id);
+      } else {
+        const saved = await downloadAsZip(entries, onProgress);
+        if (saved) toast.success("ZIP ready", { id, duration: 4000, description: `${entries.length} files` });
+        else toast.dismiss(id);
+      }
     } catch (err) {
-      toast.error("Export failed", { description: err instanceof Error ? err.message : String(err) });
+      toast.error("Export failed", { id, duration: 6000, description: err instanceof Error ? err.message : String(err) });
+    } finally {
+      busy.current = false;
+      setExporting(null);
     }
   };
 
@@ -154,20 +198,26 @@ export function TopBar() {
           <Button
             variant="acid"
             className="h-[34px] rounded-(--control-radius) px-3.5"
-            disabled={!done.length}
+            disabled={!done.length || exporting !== null}
             onClick={() => exportAll("zip")}
             title={`Export (${mod}S)`}
           >
-            {done.length ? `Export ${done.length} file${done.length === 1 ? "" : "s"}` : "Export"}
-            {done.length > 0 && <span className="font-medium opacity-60 tnum">{formatBytes(doneBytes)}</span>}
-            <span aria-hidden>→</span>
+            {exporting !== null ? (
+              <span className="tnum">Exporting {Math.round(exporting * 100)}%</span>
+            ) : (
+              <>
+                {done.length ? `Export ${done.length} file${done.length === 1 ? "" : "s"}` : "Export"}
+                {done.length > 0 && <span className="font-medium opacity-60 tnum">{formatBytes(doneBytes)}</span>}
+                <span aria-hidden>→</span>
+              </>
+            )}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="acid"
                 className="h-[34px] rounded-(--control-radius) border-l border-black/15 px-2"
-                disabled={!done.length}
+                disabled={!done.length || exporting !== null}
                 aria-label="Export options"
               >
                 <ChevronDown />
@@ -187,6 +237,25 @@ export function TopBar() {
         </div>
       </div>
     </header>
+  );
+}
+
+function ExportMeter({ fraction, written, total }: { fraction: number; written: number; total: number }) {
+  return (
+    <div className="mt-1.5 grid w-56 gap-1">
+      <div
+        className="h-1 overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(fraction * 100)}
+      >
+        <div className="h-full bg-acid transition-[width] duration-100" style={{ width: `${fraction * 100}%` }} />
+      </div>
+      <span className="text-[11px] tnum text-muted-foreground">
+        {formatBytes(written)} of {formatBytes(total)} · {Math.round(fraction * 100)}%
+      </span>
+    </div>
   );
 }
 

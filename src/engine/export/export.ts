@@ -1,4 +1,4 @@
-import { downloadZip } from "client-zip";
+import { downloadZip, predictLength } from "client-zip";
 import type { QueueItem } from "../types";
 import { outputs } from "../storage/outputs";
 
@@ -7,6 +7,9 @@ export interface ExportEntry {
   blob: Blob;
   lastModified: Date;
 }
+
+/** Bytes written so far and the expected total. */
+export type ExportProgress = (done: number, total: number) => void;
 
 /**
  * Output filenames keep the source's folder path and base name, swap the
@@ -47,29 +50,52 @@ export function downloadOne(entry: ExportEntry) {
   trigger(entry.blob, entry.name.split("/").pop()!);
 }
 
-/** Streams a ZIP. Uses a native save dialog when available so nothing is buffered in memory. */
-export async function downloadAsZip(entries: ExportEntry[], zipName = "kompress.zip") {
-  const res = downloadZip(entries.map((e) => ({ name: e.name, input: e.blob, lastModified: e.lastModified })));
+/** Reports bytes as they flow through, so a stream we can't otherwise observe gets a progress bar. */
+function counted(body: ReadableStream<Uint8Array>, total: number, onProgress?: ExportProgress) {
+  let done = 0;
+  return body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, ctrl) {
+        done += chunk.byteLength;
+        onProgress?.(done, total);
+        ctrl.enqueue(chunk);
+      },
+    }),
+  );
+}
+
+/**
+ * Streams a ZIP. Uses a native save dialog when available so nothing is buffered in memory.
+ * Resolves false when the user cancels the dialog.
+ */
+export async function downloadAsZip(entries: ExportEntry[], onProgress?: ExportProgress, zipName = "kompress.zip") {
+  const files = entries.map((e) => ({ name: e.name, input: e.blob, lastModified: e.lastModified, size: e.blob.size }));
+  const total = Number(predictLength(files));
+  const zip = () => counted(downloadZip(files, { length: total }).body!, total, onProgress);
   const w = window as Window & { showSaveFilePicker?: (o: unknown) => Promise<FileSystemFileHandle> };
   if (w.showSaveFilePicker) {
+    let handle: FileSystemFileHandle | undefined;
     try {
-      const handle = await w.showSaveFilePicker({
+      handle = await w.showSaveFilePicker({
         suggestedName: zipName,
         types: [{ description: "ZIP archive", accept: { "application/zip": [".zip"] } }],
       });
-      await res.body!.pipeTo(await handle.createWritable());
-      return;
     } catch (err) {
-      if ((err as DOMException)?.name === "AbortError") return;
+      if ((err as DOMException)?.name === "AbortError") return false;
       // fall through to a regular download
     }
+    if (handle) {
+      await zip().pipeTo(await handle.createWritable());
+      return true;
+    }
   }
-  trigger(await res.blob(), zipName);
+  trigger(await new Response(zip()).blob(), zipName);
+  return true;
 }
 
 export const canSaveToFolder = () => typeof window !== "undefined" && "showDirectoryPicker" in window;
 
-export async function saveToFolder(entries: ExportEntry[]) {
+export async function saveToFolder(entries: ExportEntry[], onProgress?: ExportProgress) {
   const w = window as Window & { showDirectoryPicker?: (o: unknown) => Promise<FileSystemDirectoryHandle> };
   let root: FileSystemDirectoryHandle;
   try {
@@ -78,15 +104,19 @@ export async function saveToFolder(entries: ExportEntry[]) {
     if ((err as DOMException)?.name === "AbortError") return 0;
     throw err;
   }
+  const total = entries.reduce((sum, e) => sum + e.blob.size, 0);
   let n = 0;
+  let written = 0;
+  onProgress?.(0, total);
   for (const e of entries) {
     const parts = e.name.split("/");
     let dir = root;
     for (const p of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(p, { create: true });
     const fh = await dir.getFileHandle(parts[parts.length - 1], { create: true });
     const ws = await fh.createWritable();
-    await ws.write(e.blob);
-    await ws.close();
+    const before = written;
+    await counted(e.blob.stream(), total, (d) => onProgress?.(before + d, total)).pipeTo(ws);
+    written += e.blob.size;
     n++;
   }
   return n;
