@@ -1,0 +1,226 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Phosphor is a dark theme too, so every dark: utility applies to it. */
+@custom-variant dark (&:is(.dark *, .phosphor *));
+@custom-variant phosphor (&:is(.phosphor *));
+
+@theme inline {
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --font-heading: var(--font-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Kompress-specific */
+  --color-acid: var(--acid);
+  --color-acid-foreground: var(--acid-foreground);
+  --color-chrome: var(--chrome);
+  --color-chrome-foreground: var(--chrome-foreground);
+  --color-chrome-muted: var(--chrome-muted);
+  --color-canvas: var(--canvas);
+  --color-hair: var(--hair);
+  --color-bar-track: var(--bar-track);
+  --color-bar-fill: var(--bar-fill);
+  --color-ok: var(--ok);
+  /* Structural rule between major regions. */
+  --color-rule: var(--rule);
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+  --radius-2xl: var(--r-2xl);
+  --radius-3xl: var(--r-3xl);
+  --radius-4xl: var(--r-4xl);
+
+  --animate-row-in: row-in 180ms ease-out;
+}
+
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: none; }
+}
+
+/*
+ * Instrument: IBM Plex, one orange accent, monospace figures, in three modes.
+ * Light is the base; `.dark` and `.phosphor` override the colours.
+ */
+:root {
+  color-scheme: light;
+  --radius: 5px;
+  --r-sm: 3px;
+  --r-md: 5px;
+  --r-lg: 6px;
+  --r-xl: 8px;
+  --r-2xl: 10px;
+  --r-3xl: 12px;
+  --r-4xl: 14px;
+  /* Buttons, segmented controls and inputs. */
+  --control-radius: 5px;
+
+  /* Light: bench-grey panels, the same orange */
+  --background: #f2f1ee;
+  --foreground: #1f1e1c;
+  --card: #f7f6f4;
+  --card-foreground: #1f1e1c;
+  --popover: #fbfaf8;
+  --popover-foreground: #1f1e1c;
+  --primary: #1f1e1c;
+  --primary-foreground: #f2f1ee;
+  --secondary: #e8e7e3;
+  --secondary-foreground: #1f1e1c;
+  --muted: #e8e7e3;
+  --muted-foreground: #6e6b65;
+  --accent: #dfddd8;
+  --accent-foreground: #111111;
+  --destructive: #d23a26;
+  --border: #dcdad5;
+  --input: #c6c3bd;
+  --ring: #e85d0c;
+
+  --acid: #e85d0c;
+  --acid-foreground: #141414;
+  --chrome: #f2f1ee;
+  --chrome-foreground: #111111;
+  --chrome-muted: #7a7771;
+  /* The Compare canvas stays neutral dark in every mode. */
+  --canvas: #1c1c1c;
+  --hair: #dcdad5;
+  --rule: #dcdad5;
+  --bar-track: #dfddd8;
+  --bar-fill: #1f1e1c;
+  --ok: #2c7a39;
+}
+
+/* Dark: charcoal */
+.dark {
+  color-scheme: dark;
+  --background: #141414;
+  --foreground: #d9d6d0;
+  --card: #181818;
+  --card-foreground: #d9d6d0;
+  --popover: #1c1c1c;
+  --popover-foreground: #d9d6d0;
+  --primary: #d9d6d0;
+  --primary-foreground: #141414;
+  --secondary: #1f1f1f;
+  --secondary-foreground: #d9d6d0;
+  --muted: #1f1f1f;
+  --muted-foreground: #7d7a75;
+  --accent: #262626;
+  --accent-foreground: #ffffff;
+  --destructive: #ff5a4a;
+  --border: #262626;
+  --input: #333333;
+  --ring: #ff6a1a;
+
+  --acid: #ff6a1a;
+  --acid-foreground: #141414;
+  --chrome: #141414;
+  --chrome-foreground: #ffffff;
+  --chrome-muted: #7d7a75;
+  --hair: #262626;
+  --rule: #262626;
+  --bar-track: #2a2a2a;
+  --bar-fill: #d9d6d0;
+  --ok: #9fd49a;
+}
+
+/* Phosphor: green trace on a black scope, amber accent, glowing figures */
+.phosphor {
+  color-scheme: dark;
+  --background: #0a0d0a;
+  --foreground: #b6e8bf;
+  --card: #0d110d;
+  --card-foreground: #b6e8bf;
+  --popover: #101610;
+  --popover-foreground: #b6e8bf;
+  --primary: #b6e8bf;
+  --primary-foreground: #0a0d0a;
+  --secondary: #121812;
+  --secondary-foreground: #b6e8bf;
+  --muted: #121812;
+  --muted-foreground: #5f8066;
+  --accent: #1a241a;
+  --accent-foreground: #e4ffe8;
+  --destructive: #ff6150;
+  --border: #1a241a;
+  --input: #273527;
+  --ring: #ffb020;
+
+  --acid: #ffb020;
+  --acid-foreground: #0a0d0a;
+  --chrome: #0a0d0a;
+  --chrome-foreground: #e4ffe8;
+  --chrome-muted: #5f8066;
+  --hair: #1a241a;
+  --rule: #1a241a;
+  --bar-track: #1a241a;
+  --bar-fill: #b6e8bf;
+  --ok: #6dff8e;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    font-feature-settings: "tnum" 1, "ss01" 1;
+    letter-spacing: -0.005em;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  ::selection {
+    background: var(--acid);
+    color: var(--acid-foreground);
+  }
+}
+
+@layer utilities {
+  .tnum { font-variant-numeric: tabular-nums; }
+  .label-caps {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+  .pixelated { image-rendering: pixelated; }
+  /* Big figures: measured mono. */
+  .fig {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  /* Phosphor: figures bloom like a trace, and the page carries faint scanlines. */
+  .phosphor .fig {
+    text-shadow: 0 0 14px color-mix(in srgb, currentColor 45%, transparent);
+  }
+  .phosphor body {
+    background-image: repeating-linear-gradient(to bottom, transparent 0 2px, rgb(120 255 150 / 0.02) 2px 3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+}

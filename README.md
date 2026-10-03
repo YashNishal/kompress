@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<p>
+  <img src="src/app/icon.svg" width="56" height="56" alt="">
+</p>
 
-## Getting Started
+# kompress/
 
-First, run the development server:
+**Smaller files. Same pixels.** Kompress batch-compresses images and video in the browser. Every encode runs on your device, and nothing is uploaded.
+
+- **Images:** AVIF, WebP, JPEG XL, JPEG and PNG, with quality, lossless, resize and metadata controls.
+- **Video:** shrink to a target size, cap the resolution and frame rate, and trim.
+- **Batches:** add hundreds of files or a whole folder, then export one file, a ZIP or straight to a folder.
+- **Compare:** split, side-by-side and diff views at up to 8×, with size and SSIM for each side.
+- **Three modes:** Light, Dark and Phosphor.
+
+## Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+bun run dev      # http://localhost:3000
+bun run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The site is served with cross-origin isolation (COOP/COEP in `next.config.ts`). This unlocks `SharedArrayBuffer`, which the multithreaded AVIF and JPEG XL encoders need. Anything embedded in the site must therefore be same-origin or CORP-enabled.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Set `NEXT_PUBLIC_SITE_URL` to the public origin so social share images resolve to absolute URLs. Vercel deployments fill this in automatically.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Layout
 
-## Learn More
+```
+src/app/                 routes, metadata, icons and the social card
+src/components/workspace queue, inspector, compare and quick look
+src/engine/              codecs, workers, scheduler and export
+src/store/               workspace state and the processing pipeline
+docs/superpowers/specs/  product and design spec
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Brand
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Mark:** a lowercase k whose arm is the slash from the wordmark, on an ink tile.
+  - Master file: `src/app/icon.svg`.
+  - In the app, `<BrandMark />` redraws it from theme colours.
+- **Wordmark:** `kompress/` in IBM Plex Mono 500, lowercase, with the slash in the accent colour.
+- **Colour:** charcoal `#141414`, paper `#f2f1ee` and orange `#ff6a1a`. In light mode the orange is `#e85d0c`.
+- **Type:** IBM Plex Sans for the UI and IBM Plex Mono for figures.
+- **Icons:**
+  - `favicon.ico` holds 16, 32 and 48 px sizes. `apple-icon.png` is 180 px and full-bleed.
+  - `public/icon-{192,512}.png` and `icon-maskable-512.png` serve the web app manifest.
+  - `opengraph-image.png` is the 1200×630 share card.
