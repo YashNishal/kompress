@@ -87,10 +87,6 @@
   transform-origin: center;
 }
 
-.diffCell {
-  opacity: clamp(0, calc((var(--p) - 0.35 - var(--i) * 0.006) * 6), 1);
-}
-
 /* ---------- 04 nothing leaves ---------- */
 
 .cutLeft {
@@ -178,12 +174,6 @@
   }
 }
 
-/* chapter progress rail */
-.rail {
-  transform: scaleX(var(--p));
-  transform-origin: left center;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .draw,
   .pop {
@@ -207,21 +197,6 @@
 [data-in] .reveal {
   opacity: 1;
   transform: none;
-}
-
-/* ---------- intro scroll cue ---------- */
-
-.cue {
-  animation: cue 1.8s cubic-bezier(0.6, 0, 0.4, 1) infinite;
-}
-@keyframes cue {
-  0% {
-    transform: translateY(-100%);
-  }
-  60%,
-  100% {
-    transform: translateY(100%);
-  }
 }
 
 /* ---------- final drop zone: marching ants while you aim at it ---------- */
@@ -248,7 +223,6 @@
     transform: none;
     transition: none;
   }
-  .cue,
   .ants {
     animation: none !important;
   }

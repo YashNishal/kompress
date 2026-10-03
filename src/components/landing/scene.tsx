@@ -28,22 +28,14 @@ export function Scene({ children, ...props }: ComponentProps<"div">) {
 
 /**
  * Writes scroll progress through `ref` (0 as its top reaches the top of the
- * viewport, 1 as its bottom reaches the bottom) to the CSS variable `--p`,
- * and to `onProgress` for anything CSS can't do, such as counting numbers.
+ * viewport, 1 as its bottom reaches the bottom) to the CSS variable `--p`.
  * Under reduced motion it pins `--p` to 1, the finished state.
  */
-export function useScrollProgress(ref: RefObject<HTMLElement | null>, onProgress?: (p: number) => void) {
-  const cb = useRef(onProgress);
-  useEffect(() => {
-    cb.current = onProgress;
-  });
+export function useScrollProgress(ref: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const set = (p: number) => {
-      el.style.setProperty("--p", p.toFixed(4));
-      cb.current?.(p);
-    };
+    const set = (p: number) => el.style.setProperty("--p", p.toFixed(4));
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
       set(1);
       return;
