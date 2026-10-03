@@ -1,0 +1,255 @@
+/*
+ * The landing story: each chapter's figure is driven by --p (0 → 1 as the chapter
+ * scrolls past), written by useScrollProgress. Elements derive a local,
+ * staggered progress --t from --p and their index --i, then ease it (--e).
+ */
+
+.chapter {
+  --p: 0;
+}
+
+/* ---------- 01 folder → queue ---------- */
+
+.tile {
+  --t: clamp(0, calc((var(--p) - 0.05 - var(--i) * 0.022) / 0.4), 1);
+  /* ease-out for the flight, back-out (a little overshoot) for the landing */
+  --e: calc(var(--t) * (2 - var(--t)));
+  --u: calc(var(--t) - 1);
+  --o: calc(1 + 2.70158 * var(--u) * var(--u) * var(--u) + 1.70158 * var(--u) * var(--u));
+  /* encode progress, then a check once it's done */
+  --b: clamp(0, calc((var(--p) - 0.42 - var(--i) * 0.012) / 0.25), 1);
+  transform: translate(calc(var(--dx) * (1 - var(--e)) * 1px), calc(var(--dy) * (1 - var(--e)) * 1px))
+    scale(calc(0.25 + 0.75 * var(--o)));
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: clamp(0, calc(var(--t) * 4), 1);
+}
+
+.tileCheck {
+  --c: clamp(0, calc((var(--b) - 0.9) * 10), 1);
+  opacity: var(--c);
+  transform: scale(calc(0.4 + 0.6 * var(--c)));
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.tileBar {
+  transform: scaleX(var(--b));
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+
+.lid {
+  transform-box: fill-box;
+  transform-origin: 0% 100%;
+  transform: rotate(calc(clamp(0, var(--p) * 5, 1) * -28deg));
+}
+
+/* ---------- 02 bars shrink ---------- */
+
+/* A column (bar plus its labels) shares one eased progress. */
+.col {
+  --t: clamp(0, calc((var(--p) - 0.12 - var(--i) * 0.025) / 0.35), 1);
+  --e: calc(var(--t) * var(--t) * (3 - 2 * var(--t)));
+}
+.bar {
+  transform: scaleY(calc(1 - (1 - var(--r)) * var(--e)));
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.barAfter {
+  opacity: var(--e);
+}
+.fmtBefore {
+  opacity: calc(1 - var(--e) * 1.6);
+}
+.fmtAfter {
+  opacity: calc(var(--e) * 1.6 - 0.6);
+}
+
+/* ---------- 03 sweep ---------- */
+
+.divider {
+  /* Sweep across (a), then settle back to the middle (b). */
+  --s: clamp(0, calc((var(--p) - 0.1) / 0.8), 1);
+  --a: clamp(0, calc(var(--s) / 0.7), 1);
+  --b: clamp(0, calc((var(--s) - 0.7) / 0.3), 1);
+  transform: translateX(calc((0.12 + 0.76 * var(--a) - 0.38 * var(--b)) * 520px));
+}
+
+/* An 8× loupe opens over the divider once the sweep settles. */
+.loupe {
+  --l: clamp(0, calc((var(--p) - 0.66) / 0.14), 1);
+  --u: calc(var(--l) - 1);
+  opacity: var(--l);
+  transform: scale(calc(0.5 + 0.5 * (1 + 2.70158 * var(--u) * var(--u) * var(--u) + 1.70158 * var(--u) * var(--u))));
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.diffCell {
+  opacity: clamp(0, calc((var(--p) - 0.35 - var(--i) * 0.006) * 6), 1);
+}
+
+/* ---------- 04 nothing leaves ---------- */
+
+.cutLeft {
+  transform: translate(calc(var(--p) * -14px), calc(var(--p) * 10px));
+}
+.cutRight {
+  transform: translate(calc(var(--p) * 14px), calc(var(--p) * -10px));
+}
+.scissors {
+  opacity: clamp(0, calc((var(--p) - 0.15) * 5), 1);
+}
+
+.packet {
+  animation: packet 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation-delay: calc(var(--i) * -0.8s);
+}
+@keyframes packet {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  10% {
+    opacity: 1;
+  }
+  45% {
+    transform: translate(56px, -41px);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.4, 1);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(12px, -9px);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+}
+
+.screenBar {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: fill 2.4s ease-in-out infinite;
+}
+@keyframes fill {
+  0% {
+    transform: scaleX(0.05);
+  }
+  85%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .packet,
+  .screenBar {
+    animation: none !important;
+  }
+  .packet {
+    opacity: 0;
+  }
+}
+
+/* ---------- intro specimen: the arrow draws itself once ---------- */
+
+.draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 1.2s 0.4s cubic-bezier(0.6, 0, 0.2, 1) forwards;
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.pop {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: pop 0.5s 1.4s cubic-bezier(0.2, 0.9, 0.3, 1.3) forwards;
+}
+@keyframes pop {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* chapter progress rail */
+.rail {
+  transform: scaleX(var(--p));
+  transform-origin: left center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draw,
+  .pop {
+    animation: none !important;
+    stroke-dashoffset: 0;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- chapter text arrives once ---------- */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.6s ease-out,
+    transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-delay: calc(var(--d, 0) * 90ms);
+}
+[data-in] .reveal {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------- intro scroll cue ---------- */
+
+.cue {
+  animation: cue 1.8s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+}
+@keyframes cue {
+  0% {
+    transform: translateY(-100%);
+  }
+  60%,
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+/* ---------- final drop zone: marching ants while you aim at it ---------- */
+
+.ants {
+  stroke-dasharray: 10 8;
+  animation: ants 0.9s linear infinite;
+  animation-play-state: paused;
+}
+.drop:hover .ants,
+.drop:focus-visible .ants,
+.drop[data-over] .ants {
+  animation-play-state: running;
+}
+@keyframes ants {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .cue,
+  .ants {
+    animation: none !important;
+  }
+}

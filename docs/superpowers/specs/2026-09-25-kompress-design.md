@@ -18,7 +18,7 @@ Three layers, with dependencies pointing one way: **UI → store → engine**. `
 ```
 src/
 ├─ app/
-│  ├─ (marketing)/page.tsx       prerendered landing; the hero is a live drop zone
+│  ├─ page.tsx                   landing: a scroll story; files dropped anywhere go to the workspace
 │  ├─ [conversion]/page.tsx      curated SEO pages (png-to-avif, compress-mp4, …)
 │  └─ app/                       client-only workspace
 │     ├─ page.tsx                Queue view
@@ -164,7 +164,19 @@ Flow: drop → probe (on the main thread, cheap) → resolve settings → `sched
 
 **States:** an empty queue shows a drop target plus "Try sample images". Unsupported capabilities get an inline explanation, never a silent disabled control.
 
-**Landing page:** the hero is a working drop zone plus a live draggable compare demo. No icon-feature grid.
+**Landing page (revised 2026-10-04):** a short scroll story, chosen from three prototypes (a conveyor-belt "press" scene, this story, and a hardware datasheet).
+- **Intro:** "A 3 MB photo, 187 KB later." A hand-drawn arrow animates from dusk.png to its AVIF.
+- **Four chapters**, each a pinned SVG driven by scroll progress (`--p`):
+  1. A folder fans its files into the queue and each encodes.
+  2. PNG bars shrink to AVIF.
+  3. A divider sweeps over identical pixels, ending in an 8× loupe.
+  4. The upload line is cut.
+- **Ending:** a closing drop zone.
+- **Navigation:** a chapter index in the header.
+- **Drop target:** the whole page.
+- **Numbers:** every figure is a real sample-set measurement.
+- **Reduced motion:** shows the finished frames.
+- No icon-feature grid.
 
 ## 6. Errors and capabilities
 
