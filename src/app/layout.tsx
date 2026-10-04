@@ -1,21 +1,31 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { THEMES } from "@/lib/theme";
 import "./globals.css";
 
-const plexSans = IBM_Plex_Sans({
+// Self-hosted (latin subset from Google Fonts) so builds never hit the network;
+// next/font/google fetches at build time and can stall the compile indefinitely.
+const plexSans = localFont({
   variable: "--font-plex-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  src: [
+    { path: "./fonts/plex-sans-400.woff2", weight: "400" },
+    { path: "./fonts/plex-sans-500.woff2", weight: "500" },
+    { path: "./fonts/plex-sans-600.woff2", weight: "600" },
+    { path: "./fonts/plex-sans-700.woff2", weight: "700" },
+  ],
+  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
 });
 
-const plexMono = IBM_Plex_Mono({
+const plexMono = localFont({
   variable: "--font-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
+  src: [
+    { path: "./fonts/plex-mono-400.woff2", weight: "400" },
+    { path: "./fonts/plex-mono-500.woff2", weight: "500" },
+  ],
+  fallback: ["ui-monospace", "monospace"],
 });
 
 const description =

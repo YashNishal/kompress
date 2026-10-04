@@ -9,6 +9,9 @@ const isolation = [
   { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
 ];
 
+// `next build` runs with --webpack: Turbopack (16.3) deadlocks bundling the
+// multithreaded AVIF/JXL/oxipng encoders, whose thread workers re-import the
+// module that spawned them. Webpack builds the same graph in ~10s.
 const nextConfig: NextConfig = {
   async headers() {
     return [
