@@ -209,3 +209,56 @@ export function OfflineFigure() {
     </Scene>
   );
 }
+
+/**
+ * The intro specimen: before, a drawn arrow, after. `annotated` widens the
+ * canvas and adds spec-sheet callouts around the two prints.
+ */
+export function Specimen({ annotated = false, className }: { annotated?: boolean; className?: string }) {
+  return (
+    <svg
+      viewBox={annotated ? "0 -18 440 340" : "0 0 420 300"}
+      className={cn("w-full max-w-[460px] lg:justify-self-end", className)}
+      role="img"
+      aria-label="A 3 MB photo becomes a 187 KB one."
+    >
+      {annotated && (
+        <g className="font-mono" fontSize={11}>
+          <text x={24} y={6} className="fill-muted-foreground">ORIGINAL · JPEG · 4032×3024</text>
+          <line x1={24} x2={150} y1={14} y2={14} className="stroke-hair" strokeWidth={1.5} />
+        </g>
+      )}
+      <g transform="rotate(-3 110 120)">
+        <rect x={20} y={30} width={180} height={150} rx={4} className="fill-card stroke-foreground" strokeWidth={2} />
+        <rect x={32} y={42} width={156} height={100} fill="#e07a5f" />
+        <rect x={32} y={42} width={156} height={40} fill="#1b2a4a" />
+        <circle cx={140} cy={92} r={14} fill="#fff4d6" />
+        <path d="M32 120 Q 80 96 120 116 T 188 110 V142 H32 Z" fill="#3d405b" />
+        <text x={32} y={164} fontSize={14} className="fill-foreground">
+          3.09 MB
+        </text>
+      </g>
+      <path d="M150 196 C 170 262, 250 270, 292 214" pathLength={1} className={cn(s.draw, "fill-none stroke-acid")} strokeWidth={3} strokeLinecap="round" />
+      <path d="M280 214 l13 -2 l2 13" pathLength={1} className={cn(s.draw, "fill-none stroke-acid")} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+      <g className={s.pop}>
+        <g transform="rotate(4 330 130)">
+          <rect x={262} y={86} width={130} height={108} rx={4} className="fill-card stroke-foreground" strokeWidth={2} />
+          <rect x={271} y={95} width={112} height={72} fill="#e07a5f" />
+          <rect x={271} y={95} width={112} height={29} fill="#1b2a4a" />
+          <circle cx={348} cy={131} r={10} fill="#fff4d6" />
+          <path d="M271 152 Q 305 134 334 148 T 383 144 V167 H271 Z" fill="#3d405b" />
+          <text x={271} y={184} fontSize={13} className="fill-foreground">
+            187 KB
+          </text>
+        </g>
+        {annotated && (
+          <g className="font-mono" fontSize={11}>
+            <text x={262} y={60} className="fill-muted-foreground">AVIF · SAME 4032×3024</text>
+            <line x1={262} x2={400} y1={68} y2={68} className="stroke-hair" strokeWidth={1.5} />
+            <text x={196} y={300} className="fill-acid" fontWeight={500}>−94% · 0 bytes uploaded</text>
+          </g>
+        )}
+      </g>
+    </svg>
+  );
+}

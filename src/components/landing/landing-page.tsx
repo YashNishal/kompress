@@ -5,17 +5,19 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/workspace/primitives";
 import { cn } from "@/lib/utils";
-import { BarsFigure, FolderFigure, OfflineFigure, SweepFigure } from "./figures";
+import { BarsFigure, FolderFigure, OfflineFigure, Specimen, SweepFigure } from "./figures";
 import { useIntake } from "./intake";
 import s from "./landing.module.css";
 import { useScrollProgress } from "./scene";
+import { COPY, ChapterText, INTROS, VariantSwitcher, type Variant } from "./variants";
 
-const SECTIONS = [
-  { id: "folder", label: "Folders" },
-  { id: "bytes", label: "Formats" },
-  { id: "check", label: "Compare" },
-  { id: "private", label: "Privacy" },
-];
+const SECTIONS = COPY["0"].map(({ id, label }) => ({ id, label }));
+const FIGURES: Record<string, ReactNode> = {
+  folder: <FolderFigure />,
+  bytes: <BarsFigure />,
+  check: <SweepFigure />,
+  private: <OfflineFigure />,
+};
 
 /** The section crossing the middle of the viewport, or null above and below them. */
 function useActiveSection() {
@@ -43,7 +45,7 @@ function useActiveSection() {
  * The landing page: an intro, then four chapters whose figures play as you
  * scroll, then a drop zone. Files dropped anywhere go straight to the workspace.
  */
-export function LandingPage() {
+export function LandingPage({ variant = "0", preview = false }: { variant?: Variant; preview?: boolean }) {
   const { over, dropProps, choose, input } = useIntake();
   const active = useActiveSection();
 
@@ -73,32 +75,21 @@ export function LandingPage() {
         </Link>
       </header>
 
-      <Intro choose={choose} />
+      {variant === "0" ? <Intro choose={choose} /> : (() => {
+        const V = INTROS[variant];
+        return <V choose={choose} />;
+      })()}
 
-      <Chapter
-        id="folder"
-        title="Bring the whole folder."
-        body="Drop a folder and every image and video in it joins the queue, subfolders included. Encoding starts straight away."
-        figure={<FolderFigure />}
-      />
-      <Chapter
-        id="bytes"
-        title="Same pixels, far fewer bytes."
-        body="AVIF, WebP and JPEG XL describe the same picture far more efficiently than PNG or JPEG. Pick a quality for images, or a target size for video."
-        figure={<BarsFigure />}
-      />
-      <Chapter
-        id="check"
-        title="Check it before you trust it."
-        body="Drag a divider across the original and the result, and zoom in as close as you like before you keep it."
-        figure={<SweepFigure />}
-      />
-      <Chapter
-        id="private"
-        title="Nothing leaves your laptop."
-        body="Everything runs inside this tab. There is no server to upload to and no account to make."
-        figure={<OfflineFigure />}
-      />
+      {COPY[variant].map((c, i, all) => (
+        <Chapter
+          key={c.id}
+          id={c.id}
+          figure={FIGURES[c.id]}
+          text={variant === "0" ? undefined : <ChapterText variant={variant} all={all} i={i} />}
+          title={c.title}
+          body={c.body}
+        />
+      ))}
 
       <section className="px-5 py-16 sm:px-8 sm:py-24">
         <button
@@ -130,6 +121,7 @@ export function LandingPage() {
 
       <Footer />
       {input}
+      {preview && <VariantSwitcher current={variant} />}
     </div>
   );
 }
@@ -162,39 +154,7 @@ function Intro({ choose }: { choose: () => void }) {
   );
 }
 
-/** A specimen pinned to the page: before, a drawn arrow, after. */
-function Specimen() {
-  return (
-    <svg viewBox="0 0 420 300" className="w-full max-w-[460px] lg:justify-self-end" role="img" aria-label="A 3 MB photo becomes a 187 KB one.">
-      <g transform="rotate(-3 110 120)">
-        <rect x={20} y={30} width={180} height={150} rx={4} className="fill-card stroke-foreground" strokeWidth={2} />
-        <rect x={32} y={42} width={156} height={100} fill="#e07a5f" />
-        <rect x={32} y={42} width={156} height={40} fill="#1b2a4a" />
-        <circle cx={140} cy={92} r={14} fill="#fff4d6" />
-        <path d="M32 120 Q 80 96 120 116 T 188 110 V142 H32 Z" fill="#3d405b" />
-        <text x={32} y={164} fontSize={14} className="fill-foreground">
-          3.09 MB
-        </text>
-      </g>
-      <path d="M150 196 C 170 262, 250 270, 292 214" pathLength={1} className={cn(s.draw, "fill-none stroke-acid")} strokeWidth={3} strokeLinecap="round" />
-      <path d="M280 214 l13 -2 l2 13" pathLength={1} className={cn(s.draw, "fill-none stroke-acid")} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
-      <g className={s.pop}>
-        <g transform="rotate(4 330 130)">
-          <rect x={262} y={86} width={130} height={108} rx={4} className="fill-card stroke-foreground" strokeWidth={2} />
-          <rect x={271} y={95} width={112} height={72} fill="#e07a5f" />
-          <rect x={271} y={95} width={112} height={29} fill="#1b2a4a" />
-          <circle cx={348} cy={131} r={10} fill="#fff4d6" />
-          <path d="M271 152 Q 305 134 334 148 T 383 144 V167 H271 Z" fill="#3d405b" />
-          <text x={271} y={184} fontSize={13} className="fill-foreground">
-            187 KB
-          </text>
-        </g>
-      </g>
-    </svg>
-  );
-}
-
-function Chapter({ id, title, body, figure }: { id: string; title: string; body: string; figure: ReactNode }) {
+function Chapter({ id, title, body, figure, text }: { id: string; title: string; body: string; figure: ReactNode; text?: ReactNode }) {
   const ref = useRef<HTMLElement>(null);
   useScrollProgress(ref);
 
@@ -217,14 +177,14 @@ function Chapter({ id, title, body, figure }: { id: string; title: string; body:
   return (
     <section ref={ref} id={id} aria-labelledby={`${id}-title`} className={cn(s.chapter, "relative h-[230dvh] scroll-mt-[52px] border-t border-hair")}>
       <div className="sticky top-[52px] grid h-[calc(100dvh-52px)] grid-rows-[auto_minmax(0,1fr)] gap-6 px-5 py-8 sm:px-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:grid-rows-1 lg:items-center lg:gap-12">
-        <div className="max-w-[44ch]">
+        {text ?? (<div className="max-w-[44ch]">
           <h2 id={`${id}-title`} className={cn(s.reveal, "text-[clamp(30px,3.6vw,52px)] font-semibold leading-[1] tracking-[-0.035em]")}>
             {title}
           </h2>
           <p className={cn(s.reveal, "mt-4 text-[16px] leading-relaxed text-muted-foreground")} style={{ "--d": 1 } as React.CSSProperties}>
             {body}
           </p>
-        </div>
+        </div>)}
         <div className="min-h-0">{figure}</div>
       </div>
     </section>
