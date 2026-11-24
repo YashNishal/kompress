@@ -19,6 +19,8 @@ interface WorkspaceState {
   shortcutsOpen: boolean;
   sort: SortKey;
   filter: Filter;
+  /** Add placeholders.json (blur data URL, ThumbHash, colour per file) to exports. */
+  exportPlaceholders: boolean;
 
   add(items: QueueItem[]): void;
   patch(id: string, patch: Partial<QueueItem>): void;
@@ -37,6 +39,7 @@ interface WorkspaceState {
   setShortcutsOpen(open: boolean): void;
   setSort(s: SortKey): void;
   setFilter(f: Filter): void;
+  setExportPlaceholders(v: boolean): void;
 }
 
 export const useWorkspace = create<WorkspaceState>((set) => ({
@@ -49,6 +52,7 @@ export const useWorkspace = create<WorkspaceState>((set) => ({
   shortcutsOpen: false,
   sort: "added",
   filter: "all",
+  exportPlaceholders: false,
 
   add: (items) =>
     set((s) => {
@@ -106,6 +110,7 @@ export const useWorkspace = create<WorkspaceState>((set) => ({
   setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
   setSort: (sort) => set({ sort }),
   setFilter: (filter) => set({ filter }),
+  setExportPlaceholders: (exportPlaceholders) => set({ exportPlaceholders }),
 }));
 
 /** Items in display order after sort/filter. */

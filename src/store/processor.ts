@@ -1,6 +1,7 @@
 "use client";
 
 import { toItemError } from "@/engine/errors";
+import { forgetPlaceholder } from "@/engine/placeholder";
 import { ImageScheduler, type Lane, type Ticket } from "@/engine/scheduler";
 import { IMAGE_FORMATS, itemHash, resolveImage } from "@/engine/settings";
 import { outputs } from "@/engine/storage/outputs";
@@ -214,7 +215,10 @@ export function removeItems(ids: string[]) {
     pending.delete(id);
     videoEngine.cancel(id);
     if (it.output) outputs.delete(it.output.key);
-    if (it.thumbUrl) URL.revokeObjectURL(it.thumbUrl);
+    if (it.thumbUrl) {
+      URL.revokeObjectURL(it.thumbUrl);
+      forgetPlaceholder(it.thumbUrl);
+    }
     const src = sourceUrls.get(id);
     if (src) URL.revokeObjectURL(src);
     sourceUrls.delete(id);

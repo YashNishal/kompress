@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuRadioGroup,
@@ -22,11 +23,14 @@ import {
   downloadAsZip,
   downloadOne,
   exportEntries,
+  placeholderManifest,
   saveToFolder,
   type ExportProgress,
 } from "@/engine/export/export";
 import { filesFromInput } from "@/lib/files";
+import { copyText } from "@/lib/clipboard";
 import { formatBytes } from "@/lib/format";
+import type { QueueItem } from "@/engine/types";
 import { MODES } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { addFiles } from "./use-add-files";
@@ -39,6 +43,7 @@ export function TopBar() {
   const order = useWorkspace((s) => s.order);
   const items = useWorkspace((s) => s.items);
   const selected = useWorkspace((s) => s.selected);
+  const exportPlaceholders = useWorkspace((s) => s.exportPlaceholders);
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
 
@@ -56,6 +61,10 @@ export function TopBar() {
     if (busy.current) return;
     const entries = exportEntries(done.map((id) => items[id]));
     if (!entries.length) return;
+    if (useWorkspace.getState().exportPlaceholders) {
+      const manifest = await placeholderManifest(entries);
+      if (manifest) entries.push(manifest);
+    }
     if (mode === "zip" && entries.length === 1) {
       downloadOne(entries[0]);
       toast.success(`Downloaded ${entries[0].name.split("/").pop()}`, { description: formatBytes(entries[0].blob.size) });
@@ -232,6 +241,17 @@ export function TopBar() {
                 Save into a folder…
                 {!canSaveToFolder() && <span className="ml-auto text-[11px] text-muted-foreground">Chrome/Edge</span>}
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => void copyPlaceholders(done.map((id) => items[id]))}>
+                Copy placeholders as JSON
+              </DropdownMenuItem>
+              <DropdownMenuCheckboxItem
+                checked={exportPlaceholders}
+                onCheckedChange={(v) => useWorkspace.getState().setExportPlaceholders(v)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                Include placeholders.json
+              </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -239,6 +259,26 @@ export function TopBar() {
     </header>
   );
 }
+
+/** Puts the same JSON that goes into placeholders.json on the clipboard. */
+async function copyPlaceholders(done: QueueItem[]) {
+  const json = placeholderManifest(exportEntries(done)).then((m) => m?.blob.text() ?? Promise.reject(new Error(NONE)));
+  try {
+    await copyText(json);
+    const n = Object.keys(JSON.parse(await json)).length;
+    toast.success(`Copied placeholders for ${n} file${n === 1 ? "" : "s"}`, { description: "Blur data URL, ThumbHash and colour" });
+  } catch (err) {
+    // A rejected ClipboardItem promise surfaces as the browser's own error, so ask the source why.
+    const none = await json.then(
+      () => false,
+      (e) => e instanceof Error && e.message === NONE,
+    );
+    if (none)
+      toast("No placeholders yet", { description: "They're made from thumbnails, which these files don't have." });
+    else toast.error("Couldn't copy placeholders", { description: err instanceof Error ? err.message : String(err) });
+  }
+}
+const NONE = "no-placeholders";
 
 function ExportMeter({ fraction, written, total }: { fraction: number; written: number; total: number }) {
   return (

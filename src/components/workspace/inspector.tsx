@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Check, Copy } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useCapabilities } from "@/hooks/use-capabilities";
@@ -17,6 +19,9 @@ import type {
   VideoResolution,
   VideoSettings,
 } from "@/engine/types";
+import { placeholderFor, thumbhashPreview, type Placeholder, type PlaceholderKind } from "@/engine/placeholder";
+import { copyText } from "@/lib/clipboard";
+import { formatBytes } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { encode, encodeAll } from "@/store/processor";
 import { useWorkspace } from "@/store/workspace";
@@ -90,6 +95,8 @@ export function Inspector() {
       ) : (
         <VideoSettingsPanel settings={first ? resolveVideo(global, first.overrides) : global.video} targets={targets} />
       )}
+
+      {scope.length === 1 && <PlaceholderSection item={scope[0]} />}
 
       {!scope.length && <OutputSection />}
 
@@ -362,10 +369,110 @@ function VideoSettingsPanel({ settings: s, targets }: { settings: VideoSettings;
   );
 }
 
+/* ---------- placeholder ---------- */
+
+const PLACEHOLDER_KINDS: { value: PlaceholderKind; label: string; hint: string }[] = [
+  { value: "base64", label: "Blur", hint: "A tiny image as a data URL. Use it as next/image's blurDataURL or a blurred CSS background." },
+  { value: "thumbhash", label: "ThumbHash", hint: "About 25 bytes. Decode it in the browser with thumbhash's thumbHashToDataURL." },
+  { value: "color", label: "Colour", hint: "The average colour, for a flat background while the image loads." },
+];
+
+/** Loading placeholders for one file: preview, the value, and a copy button. */
+function PlaceholderSection({ item }: { item: QueueItem }) {
+  const [kind, setKind] = useState<PlaceholderKind>("base64");
+  const [result, setResult] = useState<{ url: string; value?: Placeholder; error?: boolean } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const url = item.thumbUrl;
+
+  useEffect(() => {
+    if (!url) return;
+    let live = true;
+    placeholderFor(url).then(
+      (value) => live && setResult({ url, value }),
+      () => live && setResult({ url, error: true }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [url]);
+
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(t);
+  }, [copied]);
+
+  const current = result?.url === url ? result : null;
+  const p = current?.value;
+  const value = p?.[kind];
+  const meta = PLACEHOLDER_KINDS.find((k) => k.value === kind)!;
+  const w = item.output?.width ?? item.probe?.width ?? 4;
+  const h = item.output?.height ?? item.probe?.height ?? 3;
+
+  const copy = async () => {
+    if (!value) return;
+    try {
+      await copyText(value);
+      setCopied(true);
+    } catch {
+      toast.error("Couldn't copy to the clipboard");
+    }
+  };
+
+  return (
+    <Section title="Placeholder" aside={value ? formatBytes(value.length) : undefined}>
+      {!url ? (
+        <p className="text-[11.5px] text-muted-foreground">Placeholders are made from the thumbnail, which this file doesn&apos;t have yet.</p>
+      ) : current?.error ? (
+        <p className="text-[11.5px] text-muted-foreground">Couldn&apos;t read the thumbnail for this file.</p>
+      ) : (
+        <>
+          <Segmented size="sm" value={kind} onChange={setKind} aria-label="Placeholder type" options={PLACEHOLDER_KINDS} />
+          <div
+            className="relative mt-2.5 max-h-36 w-full overflow-hidden rounded-[3px] bg-muted"
+            style={{ aspectRatio: `${w} / ${h}` }}
+            aria-hidden
+          >
+            {p &&
+              (kind === "color" ? (
+                <div className="absolute inset-0" style={{ background: p.color }} />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element -- data URL, nothing to optimise
+                <img
+                  src={kind === "base64" ? p.base64 : thumbhashPreview(p.thumbhash)}
+                  alt=""
+                  className={cn("absolute inset-0 size-full object-cover", kind === "base64" && "scale-110 blur-md")}
+                />
+              ))}
+          </div>
+          <div className="mt-2.5 flex items-start gap-2">
+            {/* Padding sits outside the clamped box, or the clipped fourth line shows through it. */}
+            <div className="min-w-0 flex-1 rounded-[3px] bg-secondary px-2 py-1.5">
+              <code className="line-clamp-3 break-all font-mono text-[11px] leading-[1.45]">{value ?? "…"}</code>
+            </div>
+            <button
+              type="button"
+              onClick={copy}
+              disabled={!value}
+              aria-label={`Copy ${meta.label.toLowerCase()} placeholder`}
+              title="Copy"
+              className="grid size-7 shrink-0 place-items-center rounded-[3px] bg-secondary outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 [&_svg]:size-3.5"
+            >
+              {copied ? <Check /> : <Copy />}
+            </button>
+          </div>
+          <p className="mt-2 text-[11.5px] text-muted-foreground">{meta.hint}</p>
+        </>
+      )}
+    </Section>
+  );
+}
+
 /* ---------- global output ---------- */
 
 function OutputSection() {
   const keep = useWorkspace((s) => s.global.keepIfLarger);
+  const placeholders = useWorkspace((s) => s.exportPlaceholders);
   return (
     <Section title="Output">
       <label className="flex items-center justify-between gap-3 font-medium">
@@ -380,6 +487,15 @@ function OutputSection() {
             debounce("all", () => encodeAll());
           }}
         />
+      </label>
+      <label className="mt-3 flex items-center justify-between gap-3 font-medium">
+        <span>
+          Include placeholders
+          <span className="block text-[11.5px] font-normal text-muted-foreground">
+            Adds placeholders.json: a blur data URL, ThumbHash and colour for each file.
+          </span>
+        </span>
+        <Switch checked={placeholders} onCheckedChange={(v) => useWorkspace.getState().setExportPlaceholders(v)} />
       </label>
     </Section>
   );

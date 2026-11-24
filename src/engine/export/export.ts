@@ -1,11 +1,14 @@
 import { downloadZip, predictLength } from "client-zip";
 import type { QueueItem } from "../types";
+import { manifestBlob, placeholderFor, type ManifestEntry } from "../placeholder";
 import { outputs } from "../storage/outputs";
 
 export interface ExportEntry {
   name: string;
   blob: Blob;
   lastModified: Date;
+  /** The queue item this file came from; absent for generated files like the manifest. */
+  item?: QueueItem;
 }
 
 /** Bytes written so far and the expected total. */
@@ -30,9 +33,33 @@ export function exportEntries(items: QueueItem[]): ExportEntry[] {
     let name = `${dir}${base}.${it.output.ext}`;
     for (let n = 2; used.has(name.toLowerCase()); n++) name = `${dir}${base} (${n}).${it.output.ext}`;
     used.add(name.toLowerCase());
-    out.push({ name, blob, lastModified: new Date() });
+    out.push({ name, blob, lastModified: new Date(), item: it });
   }
   return out;
+}
+
+export const MANIFEST_NAME = "placeholders.json";
+
+/**
+ * `placeholders.json` for a set of exported files, keyed by their path inside the export.
+ * Files without a thumbnail (a video the browser couldn't seek) are left out.
+ */
+export async function placeholderManifest(entries: ExportEntry[]): Promise<ExportEntry | null> {
+  const rows = await Promise.all(
+    entries.map(async (e): Promise<[string, ManifestEntry] | null> => {
+      const it = e.item;
+      if (!it?.thumbUrl || !it.output) return null;
+      try {
+        const p = await placeholderFor(it.thumbUrl);
+        return [e.name, { width: it.output.width, height: it.output.height, ...p }];
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const found = rows.filter((r) => r !== null);
+  if (!found.length) return null;
+  return { name: MANIFEST_NAME, blob: manifestBlob(Object.fromEntries(found)), lastModified: new Date() };
 }
 
 function trigger(blob: Blob, filename: string) {
