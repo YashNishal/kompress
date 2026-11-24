@@ -210,24 +210,10 @@ export function OfflineFigure() {
   );
 }
 
-/**
- * The intro specimen: before, a drawn arrow, after. `annotated` widens the
- * canvas and adds spec-sheet callouts around the two prints.
- */
-export function Specimen({ annotated = false, className }: { annotated?: boolean; className?: string }) {
+/** The intro specimen, pinned to the page: before, a drawn arrow, after. */
+export function Specimen() {
   return (
-    <svg
-      viewBox={annotated ? "0 -18 440 340" : "0 0 420 300"}
-      className={cn("w-full max-w-[460px] lg:justify-self-end", className)}
-      role="img"
-      aria-label="A 3 MB photo becomes a 187 KB one."
-    >
-      {annotated && (
-        <g className="font-mono" fontSize={11}>
-          <text x={24} y={6} className="fill-muted-foreground">ORIGINAL · JPEG · 4032×3024</text>
-          <line x1={24} x2={150} y1={14} y2={14} className="stroke-hair" strokeWidth={1.5} />
-        </g>
-      )}
+    <svg viewBox="0 0 420 300" className="w-full max-w-[460px] lg:justify-self-end" role="img" aria-label="A 3 MB photo becomes a 187 KB one.">
       <g transform="rotate(-3 110 120)">
         <rect x={20} y={30} width={180} height={150} rx={4} className="fill-card stroke-foreground" strokeWidth={2} />
         <rect x={32} y={42} width={156} height={100} fill="#e07a5f" />
@@ -251,13 +237,6 @@ export function Specimen({ annotated = false, className }: { annotated?: boolean
             187 KB
           </text>
         </g>
-        {annotated && (
-          <g className="font-mono" fontSize={11}>
-            <text x={262} y={60} className="fill-muted-foreground">AVIF · SAME 4032×3024</text>
-            <line x1={262} x2={400} y1={68} y2={68} className="stroke-hair" strokeWidth={1.5} />
-            <text x={196} y={300} className="fill-acid" fontWeight={500}>−94% · 0 bytes uploaded</text>
-          </g>
-        )}
       </g>
     </svg>
   );

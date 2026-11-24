@@ -165,12 +165,12 @@ Flow: drop → probe (on the main thread, cheap) → resolve settings → `sched
 **States:** an empty queue shows a drop target plus "Try sample images". Unsupported capabilities get an inline explanation, never a silent disabled control.
 
 **Landing page (revised 2026-10-04):** a short scroll story, chosen from three prototypes (a conveyor-belt "press" scene, this story, and a hardware datasheet).
-- **Intro:** "A 3 MB photo, 187 KB later." A hand-drawn arrow animates from dusk.png to its AVIF.
-- **Four chapters**, each a pinned SVG driven by scroll progress (`--p`):
-  1. A folder fans its files into the queue and each encodes.
-  2. PNG bars shrink to AVIF.
-  3. A divider sweeps over identical pixels, ending in an 8× loupe.
-  4. The upload line is cut.
+- **Intro (revised 2026-11-24):** "Same photo. 94% lighter." A hand-drawn arrow animates from dusk.png to its AVIF, and a receipt strip along the bottom of the fold (Before / After / Saved / Uploaded) counts the After size down from 3.09 MB to 187 KB in step with it.
+- **Four chapters**, each a pinned SVG driven by scroll progress (`--p`). The text column has a small-caps label, the heading, a paragraph and two stats under a rule:
+  1. "One drop. The whole folder." A folder fans its files into the queue and each encodes.
+  2. "Newer codecs, tinier files." PNG bars shrink to AVIF.
+  3. "Compare before you commit." A divider sweeps over identical pixels, ending in an 8× loupe.
+  4. "Zero bytes uploaded." The upload line is cut.
 - **Ending:** a closing drop zone.
 - **Navigation:** a chapter index in the header.
 - **Drop target:** the whole page.

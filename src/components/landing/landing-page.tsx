@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/workspace/primitives";
 import { cn } from "@/lib/utils";
@@ -9,15 +9,53 @@ import { BarsFigure, FolderFigure, OfflineFigure, Specimen, SweepFigure } from "
 import { useIntake } from "./intake";
 import s from "./landing.module.css";
 import { useScrollProgress } from "./scene";
-import { COPY, ChapterText, INTROS, VariantSwitcher, type Variant } from "./variants";
 
-const SECTIONS = COPY["0"].map(({ id, label }) => ({ id, label }));
-const FIGURES: Record<string, ReactNode> = {
-  folder: <FolderFigure />,
-  bytes: <BarsFigure />,
-  check: <SweepFigure />,
-  private: <OfflineFigure />,
+type ChapterCopy = {
+  id: string;
+  label: string;
+  title: string;
+  body: string;
+  /** Two figures under the text, as [value, caption]. */
+  stats: [string, string][];
+  figure: ReactNode;
 };
+
+const CHAPTERS: ChapterCopy[] = [
+  {
+    id: "folder",
+    label: "Folders",
+    title: "One drop. The whole folder.",
+    body: "Drop a folder and every image and video in it joins the queue, subfolders included. Encoding starts straight away.",
+    stats: [["24", "files from one drop"], ["0", "clicks before it starts"]],
+    figure: <FolderFigure />,
+  },
+  {
+    id: "bytes",
+    label: "Formats",
+    title: "Newer codecs, tinier files.",
+    body: "AVIF, WebP and JPEG XL describe the same picture far more efficiently than PNG or JPEG. Pick a quality for images, or a target size for video.",
+    stats: [["5", "image formats"], ["3", "video codecs"]],
+    figure: <BarsFigure />,
+  },
+  {
+    id: "check",
+    label: "Compare",
+    title: "Compare before you commit.",
+    body: "Drag a divider across the original and the result, zoom down to single pixels, and read the SSIM score before you keep it.",
+    stats: [["SSIM", "on every result"], ["1:1", "pixel zoom"]],
+    figure: <SweepFigure />,
+  },
+  {
+    id: "private",
+    label: "Privacy",
+    title: "Zero bytes uploaded.",
+    body: "Everything runs inside this tab. There is no server to upload to and no account to make.",
+    stats: [["0 B", "sent to a server"], ["0", "accounts to make"]],
+    figure: <OfflineFigure />,
+  },
+];
+
+const reveal = (d: number) => ({ "--d": d }) as CSSProperties;
 
 /** The section crossing the middle of the viewport, or null above and below them. */
 function useActiveSection() {
@@ -32,7 +70,7 @@ function useActiveSection() {
       },
       { rootMargin: "-50% 0px -50% 0px" },
     );
-    for (const { id } of SECTIONS) {
+    for (const { id } of CHAPTERS) {
       const el = document.getElementById(id);
       if (el) io.observe(el);
     }
@@ -45,7 +83,7 @@ function useActiveSection() {
  * The landing page: an intro, then four chapters whose figures play as you
  * scroll, then a drop zone. Files dropped anywhere go straight to the workspace.
  */
-export function LandingPage({ variant = "0", preview = false }: { variant?: Variant; preview?: boolean }) {
+export function LandingPage() {
   const { over, dropProps, choose, input } = useIntake();
   const active = useActiveSection();
 
@@ -56,7 +94,7 @@ export function LandingPage({ variant = "0", preview = false }: { variant?: Vari
           <Wordmark />
         </Link>
         <nav aria-label="Sections" className="hidden h-full items-stretch gap-6 text-[13px] md:flex">
-          {SECTIONS.map(({ id, label }) => (
+          {CHAPTERS.map(({ id, label }) => (
             <a
               key={id}
               href={`#${id}`}
@@ -75,20 +113,10 @@ export function LandingPage({ variant = "0", preview = false }: { variant?: Vari
         </Link>
       </header>
 
-      {variant === "0" ? <Intro choose={choose} /> : (() => {
-        const V = INTROS[variant];
-        return <V choose={choose} />;
-      })()}
+      <Intro choose={choose} />
 
-      {COPY[variant].map((c, i, all) => (
-        <Chapter
-          key={c.id}
-          id={c.id}
-          figure={FIGURES[c.id]}
-          text={variant === "0" ? undefined : <ChapterText variant={variant} all={all} i={i} />}
-          title={c.title}
-          body={c.body}
-        />
+      {CHAPTERS.map((c) => (
+        <Chapter key={c.id} copy={c} />
       ))}
 
       <section className="px-5 py-16 sm:px-8 sm:py-24">
@@ -121,40 +149,86 @@ export function LandingPage({ variant = "0", preview = false }: { variant?: Vari
 
       <Footer />
       {input}
-      {preview && <VariantSwitcher current={variant} />}
     </div>
   );
 }
 
+/** Counts from `from` to `to` (KB) once, in step with the specimen's arrow. */
+function useCountDown(from: number, to: number, delay = 400, ms = 1200) {
+  const [v, setV] = useState(from);
+  useEffect(() => {
+    // Under reduced motion, jump straight to the end on the first frame.
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
+    const t0 = performance.now() + delay;
+    const tick = (now: number) => {
+      const t = still ? 1 : Math.min(1, Math.max(0, (now - t0) / ms));
+      const e = 1 - Math.pow(1 - t, 3);
+      setV(from + (to - from) * e);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [from, to, delay, ms]);
+  return v;
+}
+
+const kb = (v: number) => (v >= 1000 ? `${(v / 1024).toFixed(2)} MB` : `${Math.round(v)} KB`);
+
+/** The headline is the result; a receipt along the bottom of the fold does the maths. */
 function Intro({ choose }: { choose: () => void }) {
+  const after = useCountDown(3164, 187);
+  const saved = Math.round((1 - after / 3164) * 100);
+  const receipt: [string, string, boolean][] = [
+    ["Before", "3.09 MB", false],
+    ["After", kb(after), true],
+    ["Saved", `${saved}%`, false],
+    ["Uploaded", "0 bytes", false],
+  ];
+
   return (
-    <section className="grid min-h-[calc(100dvh-52px)] content-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end">
-      <div>
-        <h1 className="text-[clamp(48px,8.4vw,132px)] font-semibold leading-[0.9] tracking-[-0.05em]">
-          A 3 MB photo,
-          <br />
-          <span className="text-acid">187 KB</span> later.
-        </h1>
-        <p className="mt-8 max-w-[52ch] text-[16px] leading-relaxed text-muted-foreground">
-          Kompress compresses images and video right in your browser. Drop some files anywhere on this page to try
-          it.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-2">
-          <Button variant="acid" className="h-10 rounded-(--control-radius) px-4 text-[14px]" onClick={choose}>
-            Choose files
-          </Button>
-          <Button asChild variant="chrome" className="h-10 rounded-(--control-radius) px-4 text-[14px]">
-            <Link href="/app">Open workspace</Link>
-          </Button>
+    <section className="grid min-h-[calc(100dvh-52px)] grid-rows-[minmax(0,1fr)_auto]">
+      <div className="grid content-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center">
+        <div>
+          <p className="label-caps font-mono text-muted-foreground">IMG_0412.jpg · compressed in this tab</p>
+          <h1 className="mt-6 text-[clamp(52px,9vw,144px)] font-semibold leading-[0.88] tracking-[-0.055em]">
+            Same photo.
+            <br />
+            <span className="text-acid">94%</span> lighter.
+          </h1>
+          <p className="mt-8 max-w-[52ch] text-[17px] leading-relaxed text-muted-foreground">
+            Kompress shrinks images and video right in your browser, with nothing to upload and nothing to install. Drop
+            some files anywhere on this page to try it.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-2">
+            <Button variant="acid" className="h-10 rounded-(--control-radius) px-4 text-[14px]" onClick={choose}>
+              Choose files
+            </Button>
+            <Button asChild variant="chrome" className="h-10 rounded-(--control-radius) px-4 text-[14px]">
+              <Link href="/app">Open workspace</Link>
+            </Button>
+          </div>
         </div>
+
+        <Specimen />
       </div>
 
-      <Specimen />
+      <dl className="grid grid-cols-2 border-t border-hair md:grid-cols-4">
+        {receipt.map(([k, v, hot], i) => (
+          <div
+            key={k}
+            className={cn("border-hair px-5 py-5 sm:px-8", i % 2 === 1 && "border-l", i > 1 && "border-t md:border-t-0", i === 2 && "md:border-l")}
+          >
+            <dt className="label-caps text-muted-foreground">{k}</dt>
+            <dd className={cn("fig tnum mt-2 text-[clamp(22px,2.4vw,34px)] leading-none", hot && "text-acid")}>{v}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }
 
-function Chapter({ id, title, body, figure, text }: { id: string; title: string; body: string; figure: ReactNode; text?: ReactNode }) {
+function Chapter({ copy: c }: { copy: ChapterCopy }) {
   const ref = useRef<HTMLElement>(null);
   useScrollProgress(ref);
 
@@ -175,17 +249,32 @@ function Chapter({ id, title, body, figure, text }: { id: string; title: string;
   }, []);
 
   return (
-    <section ref={ref} id={id} aria-labelledby={`${id}-title`} className={cn(s.chapter, "relative h-[230dvh] scroll-mt-[52px] border-t border-hair")}>
+    <section ref={ref} id={c.id} aria-labelledby={`${c.id}-title`} className={cn(s.chapter, "relative h-[230dvh] scroll-mt-[52px] border-t border-hair")}>
       <div className="sticky top-[52px] grid h-[calc(100dvh-52px)] grid-rows-[auto_minmax(0,1fr)] gap-6 px-5 py-8 sm:px-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:grid-rows-1 lg:items-center lg:gap-12">
-        {text ?? (<div className="max-w-[44ch]">
-          <h2 id={`${id}-title`} className={cn(s.reveal, "text-[clamp(30px,3.6vw,52px)] font-semibold leading-[1] tracking-[-0.035em]")}>
-            {title}
-          </h2>
-          <p className={cn(s.reveal, "mt-4 text-[16px] leading-relaxed text-muted-foreground")} style={{ "--d": 1 } as React.CSSProperties}>
-            {body}
+        <div className="max-w-[48ch]">
+          <p className={cn(s.reveal, "label-caps font-mono text-muted-foreground")} style={reveal(0)}>
+            {c.label}
           </p>
-        </div>)}
-        <div className="min-h-0">{figure}</div>
+          <h2
+            id={`${c.id}-title`}
+            className={cn(s.reveal, "mt-5 text-balance text-[clamp(34px,4.2vw,64px)] font-semibold leading-[0.95] tracking-[-0.04em]")}
+            style={reveal(0)}
+          >
+            {c.title}
+          </h2>
+          <p className={cn(s.reveal, "mt-5 text-[17px] leading-relaxed text-muted-foreground")} style={reveal(1)}>
+            {c.body}
+          </p>
+          <div className={cn(s.reveal, "mt-8 hidden grid-cols-2 border-t border-hair sm:grid")} style={reveal(2)}>
+            {c.stats.map(([v, k], j) => (
+              <div key={k} className={cn("pt-5", j > 0 && "border-l border-hair pl-5")}>
+                <p className="fig tnum text-[clamp(28px,3vw,44px)] leading-none">{v}</p>
+                <p className="mt-2 text-[13px] text-muted-foreground">{k}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="min-h-0">{c.figure}</div>
       </div>
     </section>
   );
